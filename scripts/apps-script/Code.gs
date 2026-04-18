@@ -59,7 +59,7 @@ function handleUpdate_(data) {
   var found = findRowById_(id);
   if (!found) return jsonResponse_({ success: false, code: 'NOT_FOUND', message: 'Anime not found: ' + id });
 
-  // Merge incoming fields onto existing row — every field is optional
+  // Merge incoming fields onto existing row ï¿½ every field is optional
   var updated = {
     id:        found.item.id,
     title:     data.title     !== undefined ? String(data.title)                                    : found.item.title,
@@ -73,11 +73,11 @@ function handleUpdate_(data) {
   var targetSheet = getSheetForStatus_(updated.status);
 
   if (found.sheet.getName() === targetSheet.getName()) {
-    // Same sheet — update in place
+    // Same sheet ï¿½ update in place
     found.sheet.getRange(found.rowIndex, 1, 1, APP_CONFIG.FIELDS.length)
       .setValues([objectToRow_(updated)]);
   } else {
-    // Status changed (drag-drop) — move row to the correct sheet
+    // Status changed (drag-drop) ï¿½ move row to the correct sheet
     found.sheet.deleteRow(found.rowIndex);
     ensureHeaders_(targetSheet);
     targetSheet.appendRow(objectToRow_(updated));
@@ -103,7 +103,6 @@ function getAllAnime_() {
   var results = [];
   for (var i = 0; i < sheetNames.length; i++) {
     var sheet = getOrCreateSheet_(sheetNames[i]);
-    ensureHeaders_(sheet);
     results = results.concat(sheetRowsToObjects_(sheet));
   }
   return results;

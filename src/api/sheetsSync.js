@@ -4,17 +4,23 @@ import { SHEETS_SCRIPT_URL } from '../utils/constants';
  * Fire-and-forget POST to the Apps Script web app.
  * Uses mode:'no-cors' because GAS issues a 302 redirect on POST
  * which normal CORS fetch cannot follow cross-origin.
- * We never read the response — localStorage is the source of truth.
+ * We never read the response ï¿½ localStorage is the source of truth.
  */
 function post(payload) {
-  if (!SHEETS_SCRIPT_URL) return; // sync disabled — no URL configured
+  if (!SHEETS_SCRIPT_URL) {
+    console.warn('[SheetsSync] SHEETS_SCRIPT_URL is not set in constants.js â€” Google Sheets sync is disabled.');
+    return;
+  }
+  console.log('[SheetsSync] Syncing:', payload.action, payload.title || payload.id || '');
   fetch(SHEETS_SCRIPT_URL, {
     method: 'POST',
     mode: 'no-cors',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-  }).catch(() => {
-    // Sheet sync is best-effort; never crash the UI
+  }).then(() => {
+    console.log('[SheetsSync] Request sent (no-cors â€” response is opaque).');
+  }).catch((err) => {
+    console.error('[SheetsSync] Fetch failed:', err);
   });
 }
 
@@ -36,7 +42,7 @@ export function syncUpdate(anime) {
 }
 
 /**
- * Called after a delete (× button on a card).
+ * Called after a delete (ï¿½ button on a card).
  * GAS finds the row by id across all three sheet tabs and removes it.
  */
 export function syncDelete(id) {

@@ -1,6 +1,6 @@
 // Paste your Google Apps Script web app URL here after deploying.
 // Leave empty to disable Google Sheets sync (localStorage still works).
-export const SHEETS_SCRIPT_URL = '';
+export const SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby6BOzljOkw3xUMV3TbEWej1ED26v52krJ90gIMZitpC1E53cCFeSatLAbH_m790jFb/exec';
 
 export const ANIME_STATUSES = {
   COMPLETED: 'completed',
