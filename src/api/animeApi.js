@@ -1,3 +1,5 @@
+import { syncAdd, syncUpdate, syncDelete } from './sheetsSync';
+
 const STORAGE_KEY = 'anime_watchlist_v1';
 
 function loadList() {
@@ -31,6 +33,7 @@ export function addAnime(payload) {
   };
   list.unshift(entry);
   persist(list);
+  syncAdd(entry); // mirror to Google Sheets
   return Promise.resolve({ success: true, anime: entry });
 }
 
@@ -47,6 +50,7 @@ export function updateAnime(id, payload) {
     image: payload.image ?? list[idx].image,
   };
   persist(list);
+  syncUpdate(list[idx]); // mirror to Google Sheets (handles drag-drop status moves)
   return Promise.resolve({ success: true, anime: list[idx] });
 }
 
@@ -55,5 +59,6 @@ export function deleteAnime(id) {
   const next = list.filter((item) => String(item.id) !== String(id));
   if (next.length === list.length) return Promise.reject(new Error('Anime not found.'));
   persist(next);
+  syncDelete(id); // mirror to Google Sheets
   return Promise.resolve({ success: true });
 }

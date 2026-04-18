@@ -1,3 +1,7 @@
+// Paste your Google Apps Script web app URL here after deploying.
+// Leave empty to disable Google Sheets sync (localStorage still works).
+export const SHEETS_SCRIPT_URL = '';
+
 export const ANIME_STATUSES = {
   COMPLETED: 'completed',
   WATCHING: 'watching',
