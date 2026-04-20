@@ -1,3 +1,4 @@
+import { SHEETS_SCRIPT_URL } from '../utils/constants';
 import { syncAdd, syncUpdate, syncDelete } from './sheetsSync';
 
 const STORAGE_KEY = 'anime_watchlist_v1';
@@ -16,8 +17,31 @@ function persist(list) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
 }
 
-export function getAnime() {
-  return Promise.resolve({ anime: loadList() });
+/**
+ * Load anime list.
+ * If SHEETS_SCRIPT_URL is set, fetch from Google Sheets (source of truth),
+ * persist the result to localStorage, and return it.
+ * Falls back to localStorage if the fetch fails or URL is not set.
+ */
+export async function getAnime() {
+  if (!SHEETS_SCRIPT_URL) {
+    return { anime: loadList() };
+  }
+  try {
+    const res = await fetch(SHEETS_SCRIPT_URL, { method: 'GET' });
+    const data = await res.json();
+    if (data.success && Array.isArray(data.anime)) {
+      // Sort newest first to match the add-to-front behaviour
+      const sorted = data.anime.slice().sort(
+        (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
+      );
+      persist(sorted);
+      return { anime: sorted };
+    }
+  } catch {
+    // Network error or GAS error — fall back to localStorage silently
+  }
+  return { anime: loadList() };
 }
 
 export function addAnime(payload) {
