@@ -152,14 +152,8 @@ function handleSetupUser_(data) {
     return jsonResponse_({ success: false, code: 'VALIDATION_ERROR', message: 'Invalid sheetUrl/spreadsheetId.' });
   }
 
-  var spreadsheet;
-  try {
-    spreadsheet = SpreadsheetApp.openById(spreadsheetId);
-  } catch (err) {
-    return jsonResponse_({ success: false, code: 'VALIDATION_ERROR', message: 'Unable to open spreadsheet: ' + spreadsheetId });
-  }
-  ensureStatusSheets_(spreadsheet);
-
+  // Save the user to User Data FIRST so registration always succeeds,
+  // even if the user's spreadsheet isn't shared/accessible yet.
   var userConfig = {
     userId: userId,
     username: username,
@@ -167,6 +161,16 @@ function handleSetupUser_(data) {
     sheetUrl: normalizeSheetUrl_(providedSheetUrl, spreadsheetId)
   };
   var saved = upsertUserData_(userConfig);
+
+  // Best-effort: set up the status tabs in the user's sheet.
+  // Failure here does NOT block the user registration.
+  try {
+    var spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+    ensureStatusSheets_(spreadsheet);
+  } catch (err) {
+    Logger.log('Could not access spreadsheet ' + spreadsheetId + ': ' + err.message);
+  }
+
   return jsonResponse_({ success: true, status: 'ok', user: saved });
 }
 
@@ -240,6 +244,9 @@ function getOrCreateSheet_(name, spreadsheet) {
 
 function getRequestContext_(requestData) {
   var spreadsheetId = resolveSpreadsheetId_(requestData);
+  if (!spreadsheetId) {
+    throw new Error('spreadsheetId or sheetUrl is required.');
+  }
   var spreadsheet = SpreadsheetApp.openById(spreadsheetId);
   ensureStatusSheets_(spreadsheet);
   return {
@@ -470,7 +477,7 @@ function resolveSpreadsheetId_(data) {
   data = data || {};
   var explicitId = parseSpreadsheetId_(data.spreadsheetId);
   if (explicitId) return explicitId;
-  return parseSpreadsheetId_(data.sheetUrl) || APP_CONFIG.SPREADSHEET_ID;
+  return parseSpreadsheetId_(data.sheetUrl) || '';
 }
 
 function parseSpreadsheetId_(value) {
