@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   SHEETS_SCRIPT_URL,
-  DEFAULT_LANGUAGE,
   REQUIRED_SHEET_TABS,
   SETUP_STEPS,
   normalizeSetupPayload,
@@ -13,8 +12,7 @@ const INPUT_CLASS =
   'w-full rounded-md border border-purple-900/50 bg-black/60 px-3 py-2 text-white placeholder-gray-600 outline-none ring-purple-500/40 backdrop-blur-sm transition focus:border-purple-500 focus:ring-2';
 
 const COPY = {
-  en: {
-    welcomeTitle: 'Welcome to Anime Watchlist',
+  welcomeTitle: 'Welcome to Anime Watchlist',
     welcomeDescription: 'Complete this first-time setup to start using your board.',
     languageLabel: 'Language',
     usernameLabel: 'Username',
@@ -37,12 +35,9 @@ const COPY = {
     usernameRequired: 'Username is required.',
     passwordRequired: 'Password is required.',
     sheetUrlRequired: 'A valid Google Sheet link is required.',
+    checkingSheetMessage: 'Verifying editor access to your sheet...',
+    sheetAccessDenied: 'This sheet is not accessible with edit access. Open the sheet → Share → change to "Anyone with the link" → Editor, then try again.',
     steps: {
-      language: {
-        badge: 'Language',
-        title: 'Step 1: Choose your language',
-        description: 'Pick your preferred app language for this device.',
-      },
       credentials: {
         badge: 'Login',
         title: 'Step 1: Enter your account details',
@@ -58,7 +53,27 @@ const COPY = {
   bn: {
     welcomeTitle: 'Anime Watchlist-এ স্বাগতম',
     welcomeDescription: 'বোর্ড ব্যবহার শুরু করার জন্য এই প্রথমবারের সেটআপ সম্পন্ন করুন।',
-    languageLabel: 'ভাষা',
+};
+
+const TEMPLATE_SHEET_URL =
+  'https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890/edit#gid=0';
+
+function toInitialForm(initialValues) {
+  const normalized = normalizeSetupPayload(initialValues || {});
+
+  return {
+    username: normalized.username || '',
+    password: normalized.password || '',
+    sheetUrl: normalized.sheetUrl || '',
+  };
+}
+
+function toCleanString(value) {
+  return String(value ?? '').trim();
+}
+
+async function checkSheetAccess(spreadsheetId) {
+  if (!SHEETS_SCRIPT_URL) return { ok: true };
     usernameLabel: 'ইউজারনেম',
     usernamePlaceholder: 'যেমন: salimuddin07',
     passwordLabel: 'পাসওয়ার্ড',
@@ -79,6 +94,8 @@ const COPY = {
     usernameRequired: 'ইউজারনেম আবশ্যক।',
     passwordRequired: 'পাসওয়ার্ড আবশ্যক।',
     sheetUrlRequired: 'সঠিক Google Sheet লিংক দিন।',
+    checkingSheetMessage: 'আপনার শিটে এডিটর অ্যাক্সেস যাচাই করা হচ্ছে...',
+    sheetAccessDenied: 'এই শিটে এডিট অ্যাক্সেস নেই। শিট খুলুন → Share → "Anyone with the link" → Editor করুন, তারপর আবার চেষ্টা করুন।',
     steps: {
       language: {
         badge: 'ভাষা',
@@ -121,6 +138,8 @@ const COPY = {
     usernameRequired: 'यूज़रनेम आवश्यक है।',
     passwordRequired: 'पासवर्ड आवश्यक है।',
     sheetUrlRequired: 'कृपया सही Google Sheet लिंक दर्ज करें।',
+    checkingSheetMessage: 'आपकी शीट पर एडिटर एक्सेस जाँची जा रही है...',
+    sheetAccessDenied: 'इस शीट पर एडिट एक्सेस नहीं है। शीट खोलें → Share → "Anyone with the link" → Editor करें, फिर दोबारा कोशिश करें।',
     steps: {
       language: {
         badge: 'भाषा',
@@ -163,6 +182,8 @@ const COPY = {
     usernameRequired: 'યુઝરનેમ જરૂરી છે.',
     passwordRequired: 'પાસવર્ડ જરૂરી છે.',
     sheetUrlRequired: 'કૃપા કરીને માન્ય Google Sheet લિંક દાખલ કરો.',
+    checkingSheetMessage: 'તમારી શીટ પર એડિટર એક્સેસ ચકાસવામાં આવી રહ્યું છે...',
+    sheetAccessDenied: 'આ શીટ પર એડિટ એક્સેસ નથી. શીટ ખોલો → Share → "Anyone with the link" → Editor કરો, પછી ફરી પ્રયાસ કરો.',
     steps: {
       language: {
         badge: 'ભાષા',
@@ -186,15 +207,15 @@ const COPY = {
 const TEMPLATE_SHEET_URL =
   'https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890/edit#gid=0';
 
-function getCopy(language) {
-  return COPY[language] || COPY.en;
+function getCopy() {
+  return COPY;
 }
 
 function toInitialForm(initialValues) {
   const normalized = normalizeSetupPayload(initialValues || {});
 
   return {
-    language: normalized.language || DEFAULT_LANGUAGE,
+    language: 'en',
     username: normalized.username || '',
     password: normalized.password || '',
     sheetUrl: normalized.sheetUrl || '',
@@ -203,6 +224,21 @@ function toInitialForm(initialValues) {
 
 function toCleanString(value) {
   return String(value ?? '').trim();
+}
+
+async function checkSheetAccess(spreadsheetId) {
+  if (!SHEETS_SCRIPT_URL) return { ok: true };
+  try {
+    const url = new URL(SHEETS_SCRIPT_URL);
+    url.searchParams.set('action', 'check_sheet');
+    url.searchParams.set('spreadsheetId', spreadsheetId);
+    const response = await fetch(url.toString(), { method: 'GET' });
+    if (!response.ok) return { ok: false };
+    const payload = await response.json();
+    return { ok: payload.success === true, code: payload.code };
+  } catch {
+    return { ok: false };
+  }
 }
 
 async function findExistingUserSetup(username, password) {
@@ -251,16 +287,7 @@ export default function SetupOnboarding({ initialValues, onComplete }) {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState({ text: '', tone: 'info' });
-  const copy = getCopy(formData.language);
-
-  useEffect(() => {
-    const initialLanguage = normalizeSetupPayload(initialValues || {}).language || DEFAULT_LANGUAGE;
-    setFormData((prev) => (
-      prev.language === initialLanguage
-        ? prev
-        : { ...prev, language: initialLanguage }
-    ));
-  }, [initialValues?.language]);
+  const copy = getCopy();
 
   const steps = useMemo(
     () => [
@@ -365,6 +392,14 @@ export default function SetupOnboarding({ initialValues, onComplete }) {
     setSubmitting(true);
     try {
       const normalized = normalizeSetupPayload(formData);
+      setStatusMessage({ text: copy.checkingSheetMessage, tone: 'info' });
+      const accessResult = await checkSheetAccess(normalized.spreadsheetId);
+      if (!accessResult.ok) {
+        setErrors((prev) => ({ ...prev, sheetUrl: copy.sheetAccessDenied }));
+        setStatusMessage({ text: '', tone: 'info' });
+        return;
+      }
+      setStatusMessage({ text: '', tone: 'info' });
       await Promise.resolve(onComplete?.(normalized));
     } finally {
       setSubmitting(false);

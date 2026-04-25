@@ -41,6 +41,7 @@ function doGet(e) {
     var queryParams = parseQueryParams_(e);
     var action = String(queryParams.action || '').toLowerCase();
     if (action === 'get_user' || action === 'get-user') return handleGetUser_(queryParams);
+    if (action === 'check_sheet' || action === 'check-sheet') return handleCheckSheet_(queryParams);
     var anime = getAllAnime_(queryParams);
     return jsonResponse_({ success: true, status: 'ok', anime: anime });
   } catch (error) {
@@ -196,6 +197,27 @@ function handleGetUser_(data) {
   }
 
   return jsonResponse_({ success: true, status: 'ok', user: user });
+}
+
+function handleCheckSheet_(data) {
+  var spreadsheetId = parseSpreadsheetId_(String(data.spreadsheetId || ''))
+    || parseSpreadsheetId_(String(data.sheetUrl || ''));
+  if (!spreadsheetId) {
+    return jsonResponse_({ success: false, code: 'VALIDATION_ERROR', message: 'spreadsheetId or sheetUrl is required.' });
+  }
+  try {
+    var spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+    // Probe for editor access: setting the name to itself is a no-op write
+    // that succeeds only when the script has editor permission on the sheet.
+    spreadsheet.setName(spreadsheet.getName());
+    return jsonResponse_({ success: true, status: 'ok', spreadsheetId: spreadsheetId });
+  } catch (err) {
+    return jsonResponse_({
+      success: false,
+      code: 'ACCESS_DENIED',
+      message: 'Sheet is not accessible with edit access. Please share it as "Anyone with the link" with Editor access.'
+    });
+  }
 }
 
 // --- SHEET HELPERS ------------------------------------------------------------
